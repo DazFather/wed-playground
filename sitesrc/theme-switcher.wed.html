@@ -1,0 +1,14 @@
+<style>
+	font-size: 0.5em;
+</style>
+<html>
+	<label class="inline-flex-center theme-switcher">
+		<span>THEME:</span>
+		<select data-theme-switcher name="theme-switcher" id="theme-switcher">
+			{{ range .Props "themes" }}
+			<option value="{{ . }}">{{ . }}</option>
+			{{ end }}
+		</select>
+	</label>
+</html>
+

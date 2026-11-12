@@ -1,0 +1,21 @@
+<style>
+	.page {
+		width: 100vw;
+		height: 100vh;
+		overflow: auto;
+		transition: height 0.5s;
+	}
+	.hidden {
+		overflow: hidden;
+		height: 0;
+	}
+</style>
+<html>
+	{{ use "theme-switcher" ( args "themes" (list "system" "light" "dark") ) }}
+	<section id="welcome" class="page">
+		{{ use "welcome-page" }}
+	</section>
+	<main id="editor-wrapper" class="hidden page">
+		{{ use "editor-page" }}
+	</main>
+</html>

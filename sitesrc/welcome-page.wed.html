@@ -1,0 +1,28 @@
+<style>
+	display: grid;
+	place-content: center;
+	font-size: 1.75em;
+	background-image: linear-gradient(
+		45deg,
+		light-dark(hsl(0, 100%, 55%),   hsl(0, 100%, 35%)),
+		light-dark(hsl(180, 100%, 55%), hsl(180, 100%, 35%))
+	);
+	height: 100%;
+	width: 100%;
+</style>
+<html>
+	<button onclik="connect()">CONNECT</button>
+</html>
+<script require="editor-page">
+	function connect() {
+		fetch("/connect").then(res => res.text()).then(id => {
+			playID.value = id;
+			['#editor-wrapper', '#welcome'].forEach(e => {
+				select(e).classList.toggle('hidden')
+			})
+		})
+	}
+	connect()
+
+</script>
+

@@ -1,0 +1,38 @@
+<style>
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+</style>
+<html>
+	<nav>
+		<button onclick="run()">BUILD</button>
+		<button onclick="refresh()">REFRESH</button>
+	</nav>
+	{{ use "editor" }}
+	<output id="term">TEST</output>
+</html>
+<script>
+	const show = useDisplay("#term")
+	const playID = useEffect("std", id => {
+		refresh(id)
+		return id
+	})
+
+	function refresh(id=playID.value) {
+		editor.preview = `/preview/${ id }/`
+		return fetch(`/raw/${ id }/` + editor.file)
+			.then(res => res.text())
+			.then(txt => editor.content = txt)
+	}
+
+	function run(id=playID.value) {
+		return fetch(`/${ id }/${ editor.file }`, {method: 'PUT', body: editor.content})
+			.then(res => res.text())
+			.then(out => {
+				show(out)
+				refresh(id)
+			})
+	}
+</script>
+
