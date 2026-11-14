@@ -1,52 +1,104 @@
 <style>
 	display: flex;
-	width: 100%;
-	height: 75%;
+	flex-direction: column;
+	height: 100%;
+	background-color: var(--dark-carbon, gray);
+	border-radius: var(--unit);
+	overflow: hidden;
+	border: var(--unit-mini) solid var(--dark-carbon, gray); 
+	gap: var(--unit-mini); 
 
-	> * {
-		display: flex;
-		flex-direction: column;
-		width: 100%;
-		height: 100%;
-	}
-
-	.editor-section{
-		textarea {
-			resize: horizontal;
-			width: 100%;
-			height: 100%;
-		}
-	}
-
-	.preview-section{
-		padding: 0;
-		margin: 0;
+	.sideview-wrapper {
+		height: 75%;
+		gap: inherit;
 		
-		iframe {
+		.sideview {
+			display: flex;
+			flex-direction: column;
 			width: 100%;
 			height: 100%;
+			border-radius: var(--unit-small);
+			overflow: hidden;
+			gap: var(--unit-mini);
+
+			> * {
+				gap: inherit;
+				border-radius: var(--unit-mini);
+			}
 		}
 	}
+
+	button, input, textarea, figure, iframe {
+		margin: 0;
+		padding: 0;
+		border: none;
+		outline: none;
+		resize: none;
+	}
+
+	.terminal {
+		display: block;
+		height: 25%;
+		border-radius: var(--unit-small);
+		padding: var(--unit-small);
+		font-family: mono;
+		background-color: var(--black, black);
+		
+		> header {
+			font-weight: 600;
+		}
+		> output {
+		}
+	}
+
 </style>
 <html>
-	<section class="editor-section">
-		<input type="text" bind="value:file:input">
-		<textarea bind="value:content:input" wrap="off" autofocus></textarea>
-	</section>
-	<figure class="preview-section">
-		<iframe
-			bind="src:preview"
-			id="preview"
-			name="preview"
-			src="/preview/std/"
-		></iframe>
-		<figcaption>
-			<a bind="href:preview" href="" target="_preview">PREVIEW</a>
-		</figcaption>
-	</figure>
+	<div class="flex-center sideview-wrapper">
+		{{ use "file-editor" ( args
+			"bindname" "file"
+			"bindcontent" "content"
+			"playID" "playID.value"
+		) }}
+		{{ use "preview" ( args "bindframe" "preview" ) }}
+	</div>
+	<aside class="terminal">
+		<header>wed build</header>
+		<output id="term">TEST</output>
+	</aside>
 </html>
 <script>
+	const show = useDisplay("#term")
+	const playID = useEffect("std", id => {
+		refresh(id)
+		return id
+	})
+
 	const editor = useBinds(".editor-component")
 	editor.file = "app.wed.html"
+
+	function run(id=playID.value) {
+		return fetch(`/${ id }/${ editor.file }`, {method: 'PUT', body: editor.content})
+			.then(res => checkerr(res))
+			.then(res => res.text())
+			.then(out => {
+				show(out)
+				refresh(id)
+			})
+			.catch(err => window.alert(err))
+	}
+
+	function refresh(id=playID.value) {
+		editor.preview = `/preview/${ id }/`
+		return fetch(`/raw/${ id }/` + editor.file)
+			.then(res => checkerr(res))
+			.then(res => res.text())
+			.then(txt => editor.content = txt)
+			.catch(err => window.alert(err))
+	}
+
+	async function checkerr(res) {
+		if (!res.ok) throw await res.text()
+		return res
+	}
 </script>
 

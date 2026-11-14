@@ -1,0 +1,72 @@
+<style>
+	* {
+		border-radius: var(--unit-small);
+	}
+		
+	iframe {
+		width: 100%;
+		height: 100%;
+	}
+
+	figcaption {
+
+		:first-child{
+			border-bottom-left-radius: var(--unit-small);
+		}
+		:last-child{
+			border-bottom-right-radius: var(--unit-small);
+		}
+
+		> * {
+			height: 100%;
+			padding: var(--unit-small);
+			border-radius: var(--unit-mini);
+		}
+
+		.btn, output {
+			background-color: var(--color-bg-alt, gray);
+		}
+		output {
+			width: 100%;
+			button {
+				float: right;
+			}
+		}
+
+	}
+
+
+	.skeleton {
+		background: linear-gradient(45deg, rebeccapurple, navy);
+	}
+</style>
+<html>
+	<figure class="preview-section sideview">
+		{{ $deflink := printf "/preview/%s/" ( .Props "defaultID" "std" ) }}
+		<iframe src="{{ $deflink }}"
+			bind="src:{{ .Props "bindframe" }}"
+			id="{{ .Props "bindframe" }}"
+			name="{{ .Props "bindframe" }}"
+			class="skeleton"
+		></iframe>
+		<figcaption class="flex-center">
+			<output>
+				<code bind="innerText:{{ .Props "bindframe" }}">{{ $deflink }}</code>
+				<button type="button" onclick="" title="copy link">
+					<i class="fa fa-copy"></i>
+				</button>
+			</output>
+			<a href="{{ $deflink }}"
+				class="btn"
+				target="{{ .Props "bindframe" }}"
+				bind="href:{{ .Props "bindframe" }}"
+			><i class="fa fa-refresh"></i></a>
+			<a href="{{ $deflink }}"
+				class="btn"
+				target="_blank"
+				bind="href:{{ .Props "bindframe" }}"
+			><i class="fa fa-external-link"></i></a>
+		</figcaption>
+	</figure>
+</html>
+

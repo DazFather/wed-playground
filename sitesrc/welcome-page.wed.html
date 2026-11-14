@@ -13,14 +13,18 @@
 <html>
 	<button onclik="connect()">CONNECT</button>
 </html>
-<script require="editor-page">
+<script require="editor">
 	function connect() {
-		fetch("/connect").then(res => res.text()).then(id => {
-			playID.value = id;
-			['#editor-wrapper', '#welcome'].forEach(e => {
-				select(e).classList.toggle('hidden')
+		fetch("/connect")
+			.then(res => checkerr(res))
+			.then(res => res.text())
+			.then(id => {
+				playID.value = id;
+				['#editor-wrapper', '#welcome'].forEach(e => {
+					select(e).classList.toggle('hidden')
+				})
 			})
-		})
+			.catch(err => window.alert(err))
 	}
 	connect()
 

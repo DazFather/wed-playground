@@ -63,12 +63,12 @@ func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
 
 	go func() { p.edited <- file }()
 
-	return p.exec("wed", "build")
+	return p.exec("wed", "build", "-nc")
 }
 
 func (p *Playground) Init() (out []byte, err error) {
 	if out, err = p.run(true, "tail", "-f", "/dev/null"); err == nil {
-		out, err = p.exec("sh", "-c", "wed init . && wed build")
+		out, err = p.exec("sh", "-c", "wed init -nc . && wed build -nc")
 	}
 	return
 }
