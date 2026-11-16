@@ -38,15 +38,19 @@
 
 	.terminal {
 		display: block;
+		overflow: auto;
 		height: 25%;
 		border-radius: var(--unit-small);
-		padding: var(--unit-small);
 		font-family: mono;
 		background-color: var(--black, black);
+		padding: var(--unit-small);
 		
 		> header {
+			color: limegreen;
+			top: 0;
 			font-weight: 600;
 		}
+
 		> output {
 		}
 	}
@@ -78,13 +82,13 @@
 
 	function run(id=playID.value) {
 		return fetch(`/${ id }/${ editor.file }`, {method: 'PUT', body: editor.content})
-			.then(res => checkerr(res))
+			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
 			.then(res => res.text())
 			.then(out => {
 				show(out)
 				refresh(id)
 			})
-			.catch(err => window.alert(err))
+			.catch(err => err.text().then(msg => window.alert(msg)))
 	}
 
 	function refresh(id=playID.value) {

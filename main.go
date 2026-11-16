@@ -37,13 +37,13 @@ func main() {
 	defer stopConsumers()
 
 	// enque and create container
-	mux.HandleFunc("GET /connect", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /connect", nocache(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			ctx = r.Context()
 			req = NewPlayReqest(ctx)
 		)
 		if req == nil {
-			http.Error(w, "Cannot connect to playground: too many requests", 503)
+			http.Error(w, "Cannot connect to playground: too many requests", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -54,52 +54,52 @@ func main() {
 				w.Write([]byte(req.id))
 				return
 			}
-			http.Error(w, req.err.Error(), 500)
+			http.Error(w, req.err.Error(), http.StatusInternalServerError)
 		case <-ctx.Done():
-			http.Error(w, "Connection interrupted", 400)
+			http.Error(w, "Connection interrupted", http.StatusBadRequest)
 		case <-bgctx.Done():
-			http.Error(w, "Server is shutting down", 503)
+			http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
 		}
 		req.Abort()
-	})
+	}))
 
 	// edit page
 	mux.HandleFunc("PUT /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
-		play, err := ConnectPlayground(r.PathValue("ID"))
+		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
-			http.Error(w, "Cannot connect to playground: "+err.Error(), 500)
+			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
 			return
 		}
 
 		content, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, "Cannot read body: "+err.Error(), 400)
+			http.Error(w, "Cannot read body: "+err.Error(), http.StatusUnsupportedMediaType)
 			return
 		}
 		defer r.Body.Close()
 
 		file := r.PathValue("FILE")
 		if !filenamergx.MatchString(file) {
-			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", 400)
+			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", 403)
 			return
 		}
 
 		out, err := play.Edit(file, content)
 		if err != nil {
-			http.Error(w, err.Error(), 400)
+			http.Error(w, string(out)+"\n"+err.Error(), http.StatusBadRequest)
 			return
 		}
 		w.Write(out)
 	})
 
 	mux.HandleFunc("DELETE /{ID}", func(w http.ResponseWriter, r *http.Request) {
-		play, err := ConnectPlayground(r.PathValue("ID"))
+		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
-			http.Error(w, "Cannot connect to playground: "+err.Error(), 500)
+			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusNotFound)
 			return
 		}
 		if err = play.Close(); err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
 
@@ -138,8 +138,8 @@ func main() {
 
 	go func() {
 		<-bgctx.Done()
+		fmt.Println("Gracefully shutting down main server")
 		srv.Shutdown(bgctx)
-		fmt.Println("Gracefully shutting down server")
 	}()
 
 	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -158,4 +158,11 @@ func cors(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+func nocache(fn http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		fn(w, r)
+	}
 }
