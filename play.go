@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -10,11 +11,9 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	"github.com/DazFather/Wednesday/pkg/shared"
 )
 
-var actives shared.Smap[string, *Playground]
+var userID string
 
 const oci = "podman"
 
@@ -26,34 +25,38 @@ type Playground struct {
 	sync.Mutex
 }
 
+func init() {
+	usr, err := user.Current()
+	if err != nil {
+		panic("Cannot retrieve current user:" + err.Error())
+	}
+	userID = usr.Uid + ":" + usr.Gid
+}
+
 func NewPlayground(requestID string) (*Playground, error) {
-	dir := filepath.Join(os.TempDir(), requestID)
-	if err := os.Mkdir(dir, 0755); err != nil {
+	play := &Playground{
+		containerID: requestID,
+		tempdir:     filepath.Join(os.TempDir(), requestID+"_playground"),
+		user:        userID,
+		edited:      make(chan string, 1),
+	}
+
+	if err := os.Mkdir(play.tempdir, 0755); err != nil {
 		return nil, err
 	}
 
-	usr, err := user.Current()
-	if err != nil {
-		return nil, fmt.Errorf("Cannot retrieve current user: %w", err)
+	if _, err := play.run(true, "tail", "-f", "/dev/null"); err != nil {
+		os.RemoveAll(play.tempdir)
+		return nil, err
 	}
 
-	p := &Playground{
-		containerID: requestID,
-		tempdir:     dir,
-		user:        usr.Uid + ":" + usr.Gid,
-		edited:      make(chan string),
+	if _, err := play.exec("sh", "-c", "wed init -nc . && wed build -nc"); err != nil {
+		os.RemoveAll(play.tempdir)
+		sh(oci, "kill", play.containerID)
+		return nil, err
 	}
-	actives.Store(requestID, p)
 
-	return p, nil
-}
-
-func ConnectPlayground(requestID string) (*Playground, error) {
-	p, found := actives.Load(requestID)
-	if !found || p == nil {
-		return nil, fmt.Errorf("Cannot connect to %q playground", requestID)
-	}
-	return p, nil
+	return play, nil
 }
 
 func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
@@ -61,50 +64,21 @@ func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	go func() { p.edited <- file }()
+	select {
+	case p.edited <- file:
+	default:
+	}
 
 	return p.exec("wed", "build", "-nc")
 }
 
-func (p *Playground) Init() (out []byte, err error) {
-	if out, err = p.run(true, "tail", "-f", "/dev/null"); err == nil {
-		out, err = p.exec("sh", "-c", "wed init -nc . && wed build -nc")
-	}
-	return
-}
-
-func (p *Playground) Wait(ctx context.Context) bool {
-	max, cancel := context.WithTimeout(ctx, MAX_PLAYTIME)
-	defer cancel()
-
-	inactive := time.NewTimer(MAX_INACTIVE_TIME)
-	defer inactive.Stop()
-
-	dead := p.liveness(max, LIVENESS_PROBE)
-
-	for {
-		select {
-		case _, ok := <-p.edited:
-			if !ok {
-				return false
-			}
-			inactive.Reset(MAX_INACTIVE_TIME)
-		case <-dead:
-			return false
-		case <-inactive.C:
-			return false
-		case <-max.Done():
-			fmt.Println("Gracefully closing server")
-			return true
-		}
-	}
-	return false
-}
-
 func (p *Playground) Close() error {
-	defer actives.Delete(p.containerID)
-	defer os.RemoveAll(p.tempdir)
-	_, err := sh(oci, "kill", p.containerID)
+	defer close(p.edited)
+
+	err := os.RemoveAll(p.tempdir)
+	if _, e := sh(oci, "kill", p.containerID); e != nil {
+		err = errors.Join(err, e)
+	}
 	return err
 }
 
@@ -113,13 +87,14 @@ func (p *Playground) Alive() bool {
 	return err == nil && strings.TrimSpace(string(out)) == "true"
 }
 
-func (p *Playground) liveness(ctx context.Context, each time.Duration) chan struct{} {
-	notify := make(chan struct{})
+func (p *Playground) liveness(ctx context.Context, each time.Duration) <-chan struct{} {
+	notify := make(chan struct{}, 1)
 
 	go func() {
+		defer close(notify)
+
 		ping := time.NewTicker(each)
 		defer ping.Stop()
-		defer close(notify)
 
 		for {
 			select {

@@ -2,95 +2,155 @@ package main
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 	"uuid"
+
+	"github.com/DazFather/Wednesday/pkg/shared"
 )
 
-type connectReq struct {
-	id    string
-	done  chan struct{}
-	admit chan *Playground
+var actives shared.Smap[string, *PlayRequest]
+
+func ConnectPlayRequest(requestID string) (*PlayRequest, error) {
+	v, ok := (*sync.Map)(&actives).Load(requestID)
+	if !ok {
+		return nil, errors.New("Cannot connect to '" + requestID + "' playground")
+	}
+	val, _ := v.(*PlayRequest)
+	return val, nil
 }
 
-func NewReqest(ctx context.Context, waitfor time.Duration, q chan<- *connectReq) *connectReq {
-	request := &connectReq{
-		id:    uuid.New().String(),
-		done:  make(chan struct{}, 1),
-		admit: make(chan *Playground, 1),
+type PlayRequest struct {
+	id        string
+	created   chan *Playground
+	aborted   chan struct{}
+	isaborted bool
+	err       error
+	*Playground
+}
+
+func (r *PlayRequest) Abort() {
+	r.isaborted = true
+	r.aborted <- struct{}{}
+}
+
+func (r *PlayRequest) Close() error {
+	close(r.aborted)
+	close(r.created)
+	actives.Delete(r.id)
+	return r.Playground.Close()
+}
+
+func NewPlayReqest(ctx context.Context) *PlayRequest {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	req := &PlayRequest{
+		id:      uuid.New().String(),
+		aborted: make(chan struct{}, 1),
+		created: make(chan *Playground),
 	}
 
-	ctxx, cancel := context.WithTimeout(ctx, waitfor)
+	if len(requests) >= WAITLIST_SIZE {
+		return nil
+	}
+
+	select {
+	case requests <- req:
+	case <-ctx.Done():
+		return nil
+	}
+	return req
+}
+
+var requests = make(chan *PlayRequest, WAITLIST_SIZE)
+
+func LoadConsumers(ctx context.Context) func() {
+	var (
+		ctxx, cancel = context.WithCancel(ctx)
+		queue        = make(chan *PlayRequest, MAX_CONCURRENT_PLAYS)
+		wg           sync.WaitGroup
+	)
+
+	for i := 0; i < MAX_CONCURRENT_PLAYS; i++ {
+		wg.Go(func() {
+			for req := range requests {
+				req.Waitlist(ctxx, queue)
+			}
+		})
+		wg.Go(func() {
+			for req := range queue {
+				req.Active(ctxx)
+			}
+		})
+	}
+
+	return func() {
+		cancel()
+		close(requests)
+		close(queue)
+		wg.Wait()
+	}
+}
+
+func (req *PlayRequest) Waitlist(ctx context.Context, q chan *PlayRequest) {
+	ctx, cancel := context.WithTimeout(ctx, MAX_WAITTIME)
 	defer cancel()
 
 	select {
-	case q <- request:
-	case <-ctxx.Done():
-		return nil
-	}
-	return request
-}
-
-func (req *connectReq) Handle(ctx context.Context) (interrupt bool) {
-	play, err := NewPlayground(req.id)
-	if err != nil {
-		req.admit <- nil
-		return
-	}
-	defer play.Close()
-
-	if _, err = play.Init(); err != nil {
-		req.admit <- nil
-		return
-	}
-
-	select {
-	case req.admit <- play:
-		interrupt = play.Wait(ctx)
-	case <-req.done:
+	case q <- req:
+	case <-req.aborted:
 	case <-ctx.Done():
-		interrupt = true
 	}
-	return
 }
 
-func (req *connectReq) Abort() {
-	req.done <- struct{}{}
-	close(req.done)
-}
-
-// LoadConsumers starts `size` workers (active slots) pulling from the waitlist.
-func LoadConsumers(ctx context.Context, consumerSize, waitlistSize int) chan<- *connectReq {
-	var (
-		requests = make(chan *connectReq, waitlistSize)
-		wg       sync.WaitGroup
-	)
-
-	if consumerSize <= 0 || waitlistSize <= 0 {
-		return nil
-	}
+func (req *PlayRequest) Active(ctx context.Context) {
+	done := make(chan bool, 1)
 
 	go func() {
-		defer close(requests)
-		for i := 0; i < consumerSize; i++ {
-			wg.Go(func() {
-				for {
-					select {
-					case <-ctx.Done():
-						return
-					case req, ok := <-requests:
-						if !ok {
-							return
-						}
-						if req != nil && req.Handle(ctx) {
-							return
-						}
-					}
-				}
-			})
+		defer close(done)
+		if req.Playground, req.err = NewPlayground(req.id); req.err == nil && req.isaborted {
+			req.Playground.Close()
 		}
-		wg.Wait()
+		done <- req.err == nil && req.Playground != nil
 	}()
 
-	return requests
+	select {
+	case success := <-done:
+		if !success {
+			return
+		}
+	case <-req.aborted:
+	case <-ctx.Done():
+		return
+	}
+
+	defer req.Close()
+	actives.Store(req.id, req)
+	req.created <- req.Playground
+
+	max, cancel := context.WithTimeout(ctx, MAX_PLAYTIME)
+	defer cancel()
+
+	inactive := time.NewTimer(MAX_INACTIVE_TIME)
+	defer inactive.Stop()
+
+	dead := req.liveness(max, LIVENESS_PROBE)
+
+	for {
+		select {
+		case _, ok := <-req.edited:
+			if !ok {
+				return
+			}
+			inactive.Reset(MAX_INACTIVE_TIME)
+		case <-dead:
+			return
+		case <-inactive.C:
+			return
+		case <-max.Done():
+			return
+		}
+	}
 }

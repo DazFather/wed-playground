@@ -28,35 +28,39 @@ const (
 
 func main() {
 	var (
-		filenamergx = regexp.MustCompile(`^[\w\-]+\.(tmpl|wed\.html)$`)
-		mux         = http.NewServeMux()
-		bgctx, stop = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-		queue       = LoadConsumers(bgctx, MAX_CONCURRENT_PLAYS, WAITLIST_SIZE)
+		filenamergx   = regexp.MustCompile(`^[\w\-]+\.(tmpl|wed\.html)$`)
+		mux           = http.NewServeMux()
+		bgctx, stop   = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+		stopConsumers = LoadConsumers(bgctx)
 	)
 	defer stop()
+	defer stopConsumers()
 
 	// enque and create container
 	mux.HandleFunc("GET /connect", func(w http.ResponseWriter, r *http.Request) {
-		var req = NewReqest(r.Context(), MAX_WAITTIME, queue)
+		var (
+			ctx = r.Context()
+			req = NewPlayReqest(ctx)
+		)
 		if req == nil {
 			http.Error(w, "Cannot connect to playground: too many requests", 503)
 			return
 		}
 
 		select {
-		case play := <-req.admit:
-			if play == nil {
-				http.Error(w, "Cannot connect to playground: failed to start session", 503)
-			} else {
+		case play := <-req.created:
+			if play != nil {
+				w.WriteHeader(http.StatusCreated)
 				w.Write([]byte(req.id))
+				return
 			}
-			return
-		case <-r.Context().Done():
+			http.Error(w, req.err.Error(), 500)
+		case <-ctx.Done():
+			http.Error(w, "Connection interrupted", 400)
 		case <-bgctx.Done():
+			http.Error(w, "Server is shutting down", 503)
 		}
 		req.Abort()
-
-		return
 	})
 
 	// edit page
@@ -102,7 +106,7 @@ func main() {
 	mux.HandleFunc("GET /raw/{ID}/", func(w http.ResponseWriter, r *http.Request) {
 		var (
 			reqID = r.PathValue("ID")
-			dir   = filepath.Join(os.TempDir(), reqID)
+			dir   = filepath.Join(os.TempDir(), reqID+"_playground")
 		)
 		next := http.StripPrefix(
 			"/raw/"+reqID+"/",
@@ -114,7 +118,7 @@ func main() {
 	mux.HandleFunc("GET /preview/{ID}/", func(w http.ResponseWriter, r *http.Request) {
 		var (
 			reqID = r.PathValue("ID")
-			dir   = filepath.Join(os.TempDir(), reqID, "build")
+			dir   = filepath.Join(os.TempDir(), reqID+"_playground", "build")
 		)
 		next := http.StripPrefix(
 			"/preview/"+reqID+"/",
