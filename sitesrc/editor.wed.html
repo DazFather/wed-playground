@@ -21,7 +21,7 @@
 			overflow: hidden;
 			gap: var(--unit-mini);
 
-			> * {
+			* {
 				gap: inherit;
 				border-radius: var(--unit-mini);
 			}
@@ -37,37 +37,24 @@
 	}
 
 	.terminal {
-		display: block;
-		overflow: auto;
 		height: 25%;
-		border-radius: var(--unit-small);
-		font-family: mono;
-		background-color: var(--black, black);
-		padding: var(--unit-small);
-		
-		> header {
-			color: limegreen;
-			top: 0;
-			font-weight: 600;
-		}
-
-		> output {
-		}
 	}
 
 </style>
 <html>
-	<div class="flex-center sideview-wrapper">
-		{{ use "file-editor" ( args
-			"bindname" "file"
-			"bindcontent" "content"
-			"playID" "playID.value"
-		) }}
-		{{ use "preview" ( args "bindframe" "preview" ) }}
-	</div>
+	<section class="flex-center sideview-wrapper">
+		<div class="sideview">
+			{{ use "file-editor" ( args "bindcontent" "content" ) }}
+		</div>
+		<aside class="sideview">
+			{{ use "preview" ( args "bindframe" "preview" ) }}
+		</aside>
+	</section>
 	<aside class="terminal">
-		<header>wed build</header>
-		<output id="term">TEST</output>
+		{{ use "term" ( args 
+			"title"       "wed build"
+			"placeholder" "Project initialized"
+		) }}
 	</aside>
 </html>
 <script>

@@ -1,0 +1,25 @@
+<style>
+	display: block;
+	overflow: auto;
+	height: 100%;
+	border-radius: var(--unit-small);
+	font-family: mono;
+	background-color: var(--black, black);
+	padding: var(--unit-small);
+	
+	> header {
+		color: limegreen;
+		top: 0;
+		font-weight: 600;
+	}
+
+	> output {
+	}
+</style>
+<html>
+	<header>{{ .Props "title" }}</header>
+	<output id="{{ .Props "outpuID" "term" }}">
+		{{ .Props "placeholder" "" }}
+	</output>
+</html>
+

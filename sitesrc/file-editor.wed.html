@@ -1,12 +1,12 @@
 <style>
-	input, textarea , button {
+	input, textarea, button {
 		width: max(100%, var(--unit));
 		height: 100%;
 		padding: var(--unit-small);
 	}
 
 	btn {
-		border-radius: inherit;
+
 		> * {
 			border-radius: inherit;
 		}
@@ -14,20 +14,23 @@
 		button {
 			width: min-content;
 		}
+
+		.build-btn {
+			background-color: crimson;
+		}
+	}
+
+	.spacer {
+		width: 100%;
 	}
 </style>
 <html>
-	<section class="editor-section sideview">
-		<btn class="flex-center">
-			<input type="text" bind="value:{{ .Props "bindname" }}:input">
-			<button type="button" onclick="run(playID.value)">
-				<i class="fa fa-send-o"></i>
-			</button>
-			<button type="button" onclick="refresh(playID.value)">
-				<i class="fa fa-eye"></i>
-			</button>
-		</btn>
-		<textarea bind="value:{{ .Props "bindcontent" }}:input" wrap="off" autofocus></textarea>
-	</section>
+	<btn class="flex-center">
+		<div class="spacer"></div>
+		<button type="button" class="build-btn" onclick="run()">
+			{{ use "icon-play" }}
+		</button>
+	</btn>
+	<textarea bind="value:{{ .Props "bindcontent" }}:input" wrap="off" autofocus></textarea>
 </html>
 

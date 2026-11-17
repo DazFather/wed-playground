@@ -8,40 +8,73 @@
 		height: 100%;
 	}
 
-	figcaption {
+	a.btn:link, a.btn:visited, a.btn:active {
+		color: inherit;
+	}
 
+	a.btn:hover {
+		color: hotpink;
+	}
+
+
+	.preview-section {
+		height: 100%;
+		display: flex;
+		flex-direction: column;
+
+
+		.preview-nav {
+			height: 2em;
+			
 		:first-child{
 			border-bottom-left-radius: var(--unit-small);
 		}
 		:last-child{
 			border-bottom-right-radius: var(--unit-small);
 		}
-
-		> * {
-			height: 100%;
-			padding: var(--unit-small);
-			border-radius: var(--unit-mini);
-		}
-
-		.btn, output {
-			background-color: var(--color-bg-alt, gray);
-		}
-		output {
-			width: 100%;
-			button {
-				float: right;
+			
+			> * {
+				padding: var(--unit-small);
+				border-radius: var(--unit-mini);
 			}
+
+			
+			.btn {
+				background-color: var(--color-bg-alt, gray);
+			}
+			.btn {
+				height: 100%;
+				padding: var(--unit-small);
+				aspect-ratio: 1;
+			}
+			
+			.clipboard {
+				padding: calc(var(--unit-mini) / 2 );
+				width: 100%;
+				height: 100%;
+				background-color: hsla(0, 0%, 0%, 0.25);
+
+				.btn  {
+					background-color: hsla(0, 0%, 0%, 0.25);
+				}
+				code {
+					height: 100%;
+					width: 100%;
+					line-height: 100%;
+				}
+			}
+			
 		}
+		
 
 	}
-
 
 	.skeleton {
 		background: linear-gradient(45deg, rebeccapurple, navy);
 	}
 </style>
 <html>
-	<figure class="preview-section sideview">
+	<figure class="preview-section">
 		{{ $deflink := printf "/preview/%s/" ( .Props "defaultID" "std" ) }}
 		<iframe src="{{ $deflink }}"
 			bind="src:{{ .Props "bindframe" }}"
@@ -49,23 +82,25 @@
 			name="{{ .Props "bindframe" }}"
 			class="skeleton"
 		></iframe>
-		<figcaption class="flex-center">
-			<output>
-				<code bind="innerText:{{ .Props "bindframe" }}">{{ $deflink }}</code>
-				<button type="button" onclick="" title="copy link">
-					<i class="fa fa-copy"></i>
+		<figcaption class="preview-nav flex-center">
+			<output class="clipboard flex-center">
+				<code class="flex-center" bind="innerText:{{ .Props "bindframe" }}">{{ $deflink }}</code>
+				<button type="button"
+					class="btn flex-center"
+					title="copy link"
+					>{{ use "icon-copy" }}
 				</button>
 			</output>
 			<a href="{{ $deflink }}"
 				class="btn"
 				target="{{ .Props "bindframe" }}"
 				bind="href:{{ .Props "bindframe" }}"
-			><i class="fa fa-refresh"></i></a>
+			>{{ use "icon-refresh" }}</a>
 			<a href="{{ $deflink }}"
 				class="btn"
 				target="_blank"
 				bind="href:{{ .Props "bindframe" }}"
-			><i class="fa fa-external-link"></i></a>
+			>{{ use "icon-extlink" }}</a>
 		</figcaption>
 	</figure>
 </html>

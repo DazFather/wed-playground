@@ -9,13 +9,16 @@
 	width: 100%;
 	padding: var(--unit-small);
 	gap: var(--unit-small);
+
+	.icon {
+		min-width: 1em;
+		min-height: 1em;
+	}
 	
 </style>
 <html>
 	<nav class="flex-center">
 		<header>Brand</header>
-		<button onclick="run()">BUILD</button>
-		<button onclick="refresh()">REFRESH</button>
 	</nav>
 	{{ use "editor" }}
 </html>
