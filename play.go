@@ -72,6 +72,19 @@ func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
 	return p.exec("wed", "build", "-nc")
 }
 
+func (p *Playground) Delete(file string) ([]byte, error) {
+	if err := os.Remove(filepath.Join(p.tempdir, file)); err != nil {
+		return nil, err
+	}
+
+	select {
+	case p.edited <- file:
+	default:
+	}
+
+	return p.exec("wed", "build", "-nc")
+}
+
 func (p *Playground) Close() error {
 	defer close(p.edited)
 

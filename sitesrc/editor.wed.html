@@ -65,10 +65,10 @@
 	})
 
 	const editor = useBinds(".editor-component")
-	editor.file = "app.wed.html"
 
 	function run(id=playID.value) {
-		return fetch(`/${ id }/${ editor.file }`, {method: 'PUT', body: editor.content})
+		const name = activeTab.querySelector(".open-btn").value
+		return fetch(`/${ id }/${ name }`, {method: 'PUT', body: editor.content})
 			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
 			.then(res => res.text())
 			.then(out => {
@@ -80,11 +80,6 @@
 
 	function refresh(id=playID.value) {
 		editor.preview = `/preview/${ id }/`
-		return fetch(`/raw/${ id }/` + editor.file)
-			.then(res => checkerr(res))
-			.then(res => res.text())
-			.then(txt => editor.content = txt)
-			.catch(err => window.alert(err))
 	}
 
 	async function checkerr(res) {

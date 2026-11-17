@@ -1,0 +1,123 @@
+<style>
+	display: flex;
+
+	.tab {
+		padding: var(--unit-mini);
+		background-color: black;
+
+		.open-btn {
+			width: 100%;
+		}
+		.close-btn:hover {
+			background-color: indianred;
+		}
+	}
+	.tab.active {
+		background-color: cyan;
+	}
+
+	.adder {
+		input {
+			width: 0;
+			padding: 0;
+			overflow: hidden;
+			transition: width 0.15s;
+		}
+	}
+	.adder:hover{
+		input {
+			padding: unset;
+			width: 25ch;
+		}
+	}
+</style>
+<html>
+	<template id="tab-template">
+		<div class="tab inline-flex-center active">
+			<button type="button" class="open-btn" onclick="view(this.value, this.parentElement)" value="test">test</button>
+			<button type="button" class="close-btn" onclick="remove(this.value, this.parentElement)" value="test">{{ use "icon-trash" }}</button>
+		</div>
+	</template>
+	<div class="adder flex-center">
+		<button type="button" onclick="create(adderFilename.value)">
+			{{ use "icon-fileadd" }}
+		</button>
+		<input type="text">
+	</div>
+	{{ range $ind, $val := .Props "starters" }}
+	{{ if eq $ind 0 }}
+	<div class="tab inline-flex-center active">
+	{{ else }}
+	<div class="tab inline-flex-center">
+	{{ end }}
+		<button type="button" class="open-btn" onclick="view(this.value, this.parentElement)" value="{{ $val }}">{{ $val }}</button>
+	</div>
+	{{ end }}
+	
+</html>
+<script>
+	const holder = select(".tabs-component")
+	const tabtmpl = useTemplate("tab-template")
+	const opened = new Set(Array.from(holder.querySelectorAll(".tab > .open-btn"), e => e.value))
+	const activeTab = useEffect(holder.querySelector(".active"), (item, prev) => {
+		if (!!prev) prev.classList.remove("active")
+		item.classList.add("active")
+		return item
+	})
+	const adderFilename = useMirror(holder.querySelector(".adder > input"), "value")
+
+	function view(name, tab) {
+		return fetch(`/raw/${ playID.value }/` + name)
+			.then(res => checkerr(res))
+			.then(res => res.text())
+			.then(txt => {
+				editor.content = txt
+				activeTab.value = tab
+			})
+			.catch(err => window.alert(err))
+	}
+
+	function create(name=adderFilename.value, content='<html>Hello world!</html>') {
+		if (opened.has(name)) {
+			adderFilename.value = ""
+			return view(name, activeTab.value)
+		}
+
+		const prev = activeTab.value
+		return fetch(`/${ playID.value }/${ name }`, {method: 'PUT', body: content})
+			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
+			.then(res => res.text())
+			.then(out => {
+				opened.add(name)
+				adderFilename.value = ""
+				const tab = tabtmpl.clone().children[0]
+				tab.firstElementChild.innerText = name
+				tab.firstElementChild.value = name
+				tab.lastElementChild.value = name
+				editor.content = content
+				activeTab.value = tab
+				holder.appendChild(tab)
+				show(out)
+				refresh()
+			})
+			.catch(err => err.text().then(msg => window.alert(msg)))
+	}
+
+	function remove(name, tab) {
+		console.log("CLOSING?")
+		return fetch(`/${ playID.value }/` + name, {method: 'DELETE'})
+			.then(res => checkerr(res))
+			.then(res => res.text())
+			.then(out => {
+				holder.removeChild(tab)
+				show(out)
+				refresh()
+			})
+			.then(out => show(out))
+			.catch(err => window.alert(err))
+	}
+
+	// addTab("app.wed.html")
+	// addTab("index.tmpl")
+</script>
+

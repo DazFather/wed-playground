@@ -91,13 +91,32 @@ func main() {
 		w.Write(out)
 	})
 
-	mux.HandleFunc("DELETE /{ID}", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("DELETE /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
 		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
-			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusNotFound)
+			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
 			return
 		}
-		if err = play.Close(); err != nil {
+
+		file := r.PathValue("FILE")
+		if !filenamergx.MatchString(file) {
+			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", 403)
+			return
+		}
+
+		out, err := play.Delete(file)
+		if err != nil {
+			http.Error(w, string(out)+"\n"+err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Write(out)
+	})
+
+	srv.HandleFunc("DELETE /{ID}", func(w http.ResponseWriter, r *http.Request) {
+		play, err := ConnectPlayRequest(r.PathValue("ID"))
+		if err != nil {
+			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
+		} else if err = play.Close(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})

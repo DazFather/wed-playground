@@ -26,6 +26,7 @@
 </style>
 <html>
 	<btn class="flex-center">
+		{{ use "tabs" ( args "starters" ( list "app.wed.html" "index.tmpl" ) ) }}
 		<div class="spacer"></div>
 		<button type="button" class="build-btn" onclick="run()">
 			{{ use "icon-play" }}
