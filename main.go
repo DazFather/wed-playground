@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -29,7 +28,7 @@ const (
 func main() {
 	var (
 		filenamergx   = regexp.MustCompile(`^[\w\-]+\.(tmpl|wed\.html)$`)
-		mux           = http.NewServeMux()
+		srv           = http.NewServeMux()
 		bgctx, stop   = signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		stopConsumers = LoadConsumers(bgctx)
 	)
@@ -37,7 +36,7 @@ func main() {
 	defer stopConsumers()
 
 	// enque and create container
-	mux.HandleFunc("GET /connect", nocache(func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("GET /connect", nocache(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			ctx = r.Context()
 			req = NewPlayReqest(ctx)
@@ -64,7 +63,7 @@ func main() {
 	}))
 
 	// edit page
-	mux.HandleFunc("PUT /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("PUT /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
 		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
 			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
@@ -103,66 +102,25 @@ func main() {
 		}
 	})
 
-	mux.HandleFunc("GET /raw/{ID}/", func(w http.ResponseWriter, r *http.Request) {
-		var (
-			reqID = r.PathValue("ID")
-			dir   = filepath.Join(os.TempDir(), reqID+"_playground")
-		)
-		next := http.StripPrefix(
+	srv.HandleFunc("GET /raw/{ID}/", func(w http.ResponseWriter, r *http.Request) {
+		var reqID = r.PathValue("ID")
+		serveDir(
+			filepath.Join(os.TempDir(), reqID+"_playground"),
 			"/raw/"+reqID+"/",
-			http.FileServer(http.Dir(dir)),
-		)
-		next.ServeHTTP(w, r)
+		).ServeHTTP(w, r)
 	})
 
-	mux.HandleFunc("GET /preview/{ID}/", func(w http.ResponseWriter, r *http.Request) {
-		var (
-			reqID = r.PathValue("ID")
-			dir   = filepath.Join(os.TempDir(), reqID+"_playground", "build")
-		)
-		next := http.StripPrefix(
+	srv.HandleFunc("GET /preview/{ID}/", func(w http.ResponseWriter, r *http.Request) {
+		var reqID = r.PathValue("ID")
+		serveDir(
+			filepath.Join(os.TempDir(), reqID+"_playground", "build"),
 			"/preview/"+reqID+"/",
-			http.FileServer(http.Dir(dir)),
-		)
-		next.ServeHTTP(w, r)
+		).ServeHTTP(w, r)
 	})
 
-	mux.Handle("GET /", http.StripPrefix(
-		"/", http.FileServer(http.Dir("./static")),
-	))
+	srv.Handle("GET /", serveDir("./static", "/"))
 
-	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: cors(mux),
-	}
-
-	go func() {
-		<-bgctx.Done()
-		fmt.Println("Gracefully shutting down main server")
-		srv.Shutdown(bgctx)
-	}()
-
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	if err := Serve(bgctx, srv, ":8080"); err != nil {
 		fmt.Println("server error:", err)
-	}
-}
-
-func cors(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type,Authorization")
-		w.Header().Set("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
-		if r.Method == "OPTIONS" {
-			w.WriteHeader(http.StatusOK)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func nocache(fn http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
-		fn(w, r)
 	}
 }
