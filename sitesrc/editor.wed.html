@@ -34,6 +34,9 @@
 		border: none;
 		outline: none;
 		resize: none;
+		background-color: var(--color-bg);
+		transition-duration: var(--speed);
+		transition-properties: all;
 	}
 
 	.terminal {
@@ -67,7 +70,7 @@
 	const editor = useBinds(".editor-component")
 
 	function run(id=playID.value) {
-		const name = activeTab.querySelector(".open-btn").value
+		const name = activeTab.value.querySelector(".open-btn").value
 		return fetch(`/${ id }/${ name }`, {method: 'PUT', body: editor.content})
 			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
 			.then(res => res.text())

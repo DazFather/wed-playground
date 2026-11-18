@@ -1,14 +1,17 @@
 <style>
+	--speed: 0.25s;
+
 	.page {
 		width: 100vw;
 		height: 100vh;
 		overflow: auto;
-		transition: height 0.5s;
+		transition: height var(--speed);
 	}
 	.hidden {
 		overflow: hidden;
 		height: 0;
 	}
+
 </style>
 <html>
 	{{ use "theme-switcher" ( args "themes" (list "system" "light" "dark") ) }}

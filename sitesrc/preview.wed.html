@@ -87,6 +87,7 @@
 				<code class="flex-center" bind="innerText:{{ .Props "bindframe" }}">{{ $deflink }}</code>
 				<button type="button"
 					class="btn flex-center"
+					onclick="copy(this.parentElement.innerText)"
 					title="copy link"
 					>{{ use "icon-copy" }}
 				</button>
@@ -104,4 +105,11 @@
 		</figcaption>
 	</figure>
 </html>
+<script>
+	function copy(content) {
+		navigator.clipboard.writeText(content)
+			.then(() => alert("COPIED!"))
+			.catch(() => alert("FAILED!"))
+	}
+</script>
 

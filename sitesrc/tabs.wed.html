@@ -2,18 +2,36 @@
 	display: flex;
 
 	.tab {
-		padding: var(--unit-mini);
-		background-color: black;
+		padding: 0;
+		background-color: var(--color-bg);
+
+		button {
+			padding: var(--unit-small);
+		}
 
 		.open-btn {
 			width: 100%;
+		}
+		.close-btn {
+			margin: var(--unit-mini) var(--unit-mini) 0 0;
+			height: auto;
+			align-self: flex-start;
+			padding: 0;
+			> * {
+				display: inline-block;
+				padding: var(--unit-mini);
+				padding-bottom: 0;
+				font-size: 0.75em;
+			}
+			
 		}
 		.close-btn:hover {
 			background-color: indianred;
 		}
 	}
 	.tab.active {
-		background-color: cyan;
+		margin-bottom: calc(var(--unit-small) * -1);
+		border-radius: var(--unit-small) var(--unit-small) 0 0;
 	}
 
 	.adder {
@@ -21,12 +39,12 @@
 			width: 0;
 			padding: 0;
 			overflow: hidden;
-			transition: width 0.15s;
+			transition: width var(--speed);
 		}
 	}
 	.adder:hover{
 		input {
-			padding: unset;
+			padding: var(--unit-mini);
 			width: 25ch;
 		}
 	}

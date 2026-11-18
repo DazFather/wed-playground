@@ -11,20 +11,25 @@
 	width: 100%;
 </style>
 <html>
-	<button onclik="connect()">CONNECT</button>
+	<button id="connect-btn" onclik="connect()" disable>CONNECT</button>
 </html>
 <script require="editor">
+	const editorPage = useMirror(select("#editor-wrapper"), "classList")
+	const welcomePage = useMirror(select("#welcome"), "classList")
+	const connectBtn = useMirror(select("#connect-btn"), "disable")
+
 	function connect() {
+		connectBtn.disable = true
 		fetch("/connect")
 			.then(res => checkerr(res))
 			.then(res => res.text())
 			.then(id => {
+				editorPage.classList.toggle('hidden')
+				welcomePage.classList.toggle('hidden')
 				playID.value = id;
-				['#editor-wrapper', '#welcome'].forEach(e => {
-					select(e).classList.toggle('hidden')
-				})
 			})
 			.catch(err => window.alert(err))
+			.finally(() => connectBtn.disable = false)
 	}
 	connect()
 
