@@ -6,40 +6,38 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/user"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 )
 
-var userID string
+const (
+	PLAYGROUND_RAM  = "256m"
+	PLAYGROUND_SWAP = "256m"
+	PLAYGROUND_USER = "10001:10001"
+	PLAYGROUND_PIDS = "64"
+)
 
 type Playground struct {
 	containerID string
 	tempdir     string
-	user        string
 	edited      chan string
 	sync.Mutex
-}
-
-func init() {
-	usr, err := user.Current()
-	if err != nil {
-		panic("Cannot retrieve current user:" + err.Error())
-	}
-	userID = usr.Uid + ":" + usr.Gid
 }
 
 func NewPlayground(requestID string) (*Playground, error) {
 	play := &Playground{
 		containerID: requestID,
 		tempdir:     filepath.Join(os.TempDir(), requestID+"_playground"),
-		user:        userID,
 		edited:      make(chan string, 1),
 	}
 
-	if err := os.Mkdir(play.tempdir, 0755); err != nil {
+	if err := os.Mkdir(play.tempdir, 0777); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(play.tempdir, 0777); err != nil {
+		os.RemoveAll(play.tempdir)
 		return nil, err
 	}
 
@@ -48,7 +46,7 @@ func NewPlayground(requestID string) (*Playground, error) {
 		return nil, err
 	}
 
-	if _, err := play.exec("sh", "-c", "wed init -nc . && wed build -nc"); err != nil {
+	if _, err := play.exec("sh", "-c", "wed init -nc -s /etc/wed-settings.json && wed build -nc -s /etc/wed-settings.json && (chmod -R a+rwX ./* 2>/dev/null || true)"); err != nil {
 		os.RemoveAll(play.tempdir)
 		sh(oci, "kill", play.containerID)
 		return nil, err
@@ -58,7 +56,19 @@ func NewPlayground(requestID string) (*Playground, error) {
 }
 
 func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
-	if err := os.WriteFile(filepath.Join(p.tempdir, file), content, 0600); err != nil {
+	dir := filepath.Join(p.tempdir, "input")
+	if err := os.MkdirAll(dir, 0777); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(dir, 0777); err != nil && !errors.Is(err, os.ErrPermission) {
+		return nil, err
+	}
+
+	path := filepath.Join(dir, file)
+	if err := os.WriteFile(path, content, 0666); err != nil {
+		return nil, err
+	}
+	if err := os.Chmod(path, 0666); err != nil && !errors.Is(err, os.ErrPermission) {
 		return nil, err
 	}
 
@@ -67,11 +77,11 @@ func (p *Playground) Edit(file string, content []byte) ([]byte, error) {
 	default:
 	}
 
-	return p.exec("wed", "build", "-nc")
+	return p.exec("sh", "-c", "wed build -nc -s /etc/wed-settings.json && (chmod -R a+rwX ./* 2>/dev/null || true)")
 }
 
 func (p *Playground) Delete(file string) ([]byte, error) {
-	if err := os.Remove(filepath.Join(p.tempdir, file)); err != nil {
+	if err := os.Remove(filepath.Join(p.tempdir, "input", file)); err != nil {
 		return nil, err
 	}
 
@@ -80,7 +90,7 @@ func (p *Playground) Delete(file string) ([]byte, error) {
 	default:
 	}
 
-	return p.exec("wed", "build", "-nc")
+	return p.exec("sh", "-c", "wed build -nc -s /etc/wed-settings.json && (chmod -R a+rwX ./* 2>/dev/null || true)")
 }
 
 func (p *Playground) Close() error {
@@ -128,14 +138,19 @@ func (p *Playground) run(detached bool, args ...string) ([]byte, error) {
 	defer p.Unlock()
 
 	cmd := []string{
-		"run",
-		"--rm",
+		"run", "--rm",
 		"--name", p.containerID,
-		"-w", "/workspace",
-		"-v", p.tempdir + ":/workspace",
 		"--network", "none",
-		"--userns=keep-id",
-		"--user", p.user,
+		"--read-only",
+		"--user", PLAYGROUND_USER,
+		"--cap-drop", "ALL",
+		"--security-opt", "no-new-privileges",
+		"--pids-limit", PLAYGROUND_PIDS,
+		"--memory", PLAYGROUND_RAM,
+		"--memory-swap", PLAYGROUND_SWAP,
+		"--cpus", "1",
+		"--mount", "type=bind,src=" + p.tempdir + ",dst=/workspace",
+		"--tmpfs", "/tmp:rw,nosuid,nodev,size=64m",
 	}
 	if detached {
 		cmd = append(cmd, "-d")

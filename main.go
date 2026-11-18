@@ -124,7 +124,7 @@ func main() {
 	srv.HandleFunc("GET /raw/{ID}/", func(w http.ResponseWriter, r *http.Request) {
 		var reqID = r.PathValue("ID")
 		serveDir(
-			filepath.Join(os.TempDir(), reqID+"_playground"),
+			filepath.Join(os.TempDir(), reqID+"_playground", "input"),
 			"/raw/"+reqID+"/",
 		).ServeHTTP(w, r)
 	})
@@ -132,7 +132,7 @@ func main() {
 	srv.HandleFunc("GET /preview/{ID}/", func(w http.ResponseWriter, r *http.Request) {
 		var reqID = r.PathValue("ID")
 		serveDir(
-			filepath.Join(os.TempDir(), reqID+"_playground", "build"),
+			filepath.Join(os.TempDir(), reqID+"_playground", "output"),
 			"/preview/"+reqID+"/",
 		).ServeHTTP(w, r)
 	})
