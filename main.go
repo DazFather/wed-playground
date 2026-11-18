@@ -139,7 +139,7 @@ func main() {
 
 	srv.Handle("GET /", serveDir("./static", "/"))
 
-	if err := Serve(bgctx, srv, ":8080"); err != nil {
+	if err := Serve(bgctx, srv, port); err != nil {
 		fmt.Println("server error:", err)
 	}
 }

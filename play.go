@@ -15,8 +15,6 @@ import (
 
 var userID string
 
-const oci = "podman"
-
 type Playground struct {
 	containerID string
 	tempdir     string
