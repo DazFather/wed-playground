@@ -20,16 +20,14 @@
 
 	function connect() {
 		connectBtn.disable = true
-		fetch("/connect")
-			.then(res => checkerr(res))
-			.then(res => res.text())
-			.then(id => {
-				editorPage.classList.toggle('hidden')
-				welcomePage.classList.toggle('hidden')
-				playID.value = id;
-			})
-			.catch(err => window.alert(err))
-			.finally(() => connectBtn.disable = false)
+		return http("/connect").then(id => {
+			editorPage.classList.toggle('hidden')
+			welcomePage.classList.toggle('hidden')
+			playID.value = id;
+			if (opened.size > 0) {
+				view(opened.values().next().value, activeTab.value)
+			}
+		}).finally(() => connectBtn.disable = false)
 	}
 	connect()
 

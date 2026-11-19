@@ -69,16 +69,11 @@
 
 	const editor = useBinds(".editor-component")
 
-	function run(id=playID.value) {
+	async function run(id=playID.value) {
 		const name = activeTab.value.querySelector(".open-btn").value
-		return fetch(`/${ id }/${ name }`, {method: 'PUT', body: editor.content})
-			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
-			.then(res => res.text())
-			.then(out => {
-				show(out)
-				refresh(id)
-			})
-			.catch(err => err.text().then(msg => window.alert(msg)))
+		const out = await http("/" + id + "/" + name, 'PUT', editor.content, r => !r.ok && r.status !== 400)
+		show(out)
+		refresh(id)
 	}
 
 	function refresh(id=playID.value) {
@@ -88,6 +83,13 @@
 	async function checkerr(res) {
 		if (!res.ok) throw await res.text()
 		return res
+	}
+
+	function http(path, method='GET', body=null, fails=(res) => !res.ok) {
+		return fetch(path, {method, body, cache: "no-store"})
+			.then(res => { if (fails(res)) throw res; return res} )
+			.then(res => res.text())
+			.catch(res => res.text().then(msg => window.alert(msg)))
 	}
 </script>
 

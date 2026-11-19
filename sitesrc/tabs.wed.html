@@ -76,66 +76,49 @@
 <script>
 	const holder = select(".tabs-component")
 	const tabtmpl = useTemplate("tab-template")
+	const adderFilename = useMirror(holder.querySelector(".adder > input"), "value")
 	const opened = new Set(Array.from(holder.querySelectorAll(".tab > .open-btn"), e => e.value))
 	const activeTab = useEffect(holder.querySelector(".active"), (item, prev) => {
 		if (!!prev) prev.classList.remove("active")
 		item.classList.add("active")
 		return item
 	})
-	const adderFilename = useMirror(holder.querySelector(".adder > input"), "value")
 
-	function view(name, tab) {
-		return fetch(`/raw/${ playID.value }/` + name)
-			.then(res => checkerr(res))
-			.then(res => res.text())
-			.then(txt => {
-				editor.content = txt
-				activeTab.value = tab
-			})
-			.catch(err => window.alert(err))
+	async function view(name, tab) {
+		const txt = await http(`/raw/${ playID.value }/` + name)
+		editor.content = txt
+		activeTab.value = tab
 	}
 
-	function create(name=adderFilename.value, content='<html>Hello world!</html>') {
+	async function create(name=adderFilename.value, content='<html>Hello world!</html>') {
 		if (opened.has(name)) {
 			adderFilename.value = ""
-			return view(name, activeTab.value)
+			return await view(name, activeTab.value)
 		}
 
-		const prev = activeTab.value
-		return fetch(`/${ playID.value }/${ name }`, {method: 'PUT', body: content})
-			.then(res => { if (!res.ok && res.status !== 400) throw res; return res })
-			.then(res => res.text())
-			.then(out => {
-				opened.add(name)
-				adderFilename.value = ""
-				const tab = tabtmpl.clone().children[0]
-				tab.firstElementChild.innerText = name
-				tab.firstElementChild.value = name
-				tab.lastElementChild.value = name
-				editor.content = content
-				activeTab.value = tab
-				holder.appendChild(tab)
-				show(out)
-				refresh()
-			})
-			.catch(err => err.text().then(msg => window.alert(msg)))
+		const out = await http(`/${ playID.value }/${ name }`, 'PUT', content, r => !r.ok && r.status !== 400)
+
+		opened.add(name)
+		adderFilename.value = ""
+		const tab = tabtmpl.clone().children[0]
+		tab.firstElementChild.innerText = name
+		tab.firstElementChild.value = name
+		tab.lastElementChild.value = name
+		activeTab.value = tab
+		holder.appendChild(tab)
+
+		editor.content = content
+		show(out)
+		refresh()
 	}
 
-	function remove(name, tab) {
-		console.log("CLOSING?")
-		return fetch(`/${ playID.value }/` + name, {method: 'DELETE'})
-			.then(res => checkerr(res))
-			.then(res => res.text())
-			.then(out => {
-				holder.removeChild(tab)
-				show(out)
-				refresh()
-			})
-			.then(out => show(out))
-			.catch(err => window.alert(err))
-	}
+	async function remove(name, tab) {
+		const out = await http("/" + id + "/" + name, 'DELETE')
+		holder.removeChild(tab)
+		s.delete(name)
+		show(out)
+		refresh()
+	}	
 
-	// addTab("app.wed.html")
-	// addTab("index.tmpl")
 </script>
 
