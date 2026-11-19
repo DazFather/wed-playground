@@ -75,7 +75,7 @@
 </style>
 <html>
 	<figure class="preview-section">
-		{{ $deflink := printf "/preview/%s/" ( .Props "defaultID" "std" ) }}
+		{{ $deflink := printf "https://%s/preview/%s/" ( var "baseurl" ) ( .Props "defaultID" "std" ) }}
 		<iframe src="{{ $deflink }}"
 			bind="src:{{ .Props "bindframe" }}"
 			id="{{ .Props "bindframe" }}"

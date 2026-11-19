@@ -1,16 +1,18 @@
 <style>
-	display: flex;
-	flex-direction: column;
-	height: 100%;
+	display: block;
+	min-height: 100%;
 	background-color: var(--dark-carbon, gray);
 	border-radius: var(--unit);
-	overflow: hidden;
-	border: var(--unit-mini) solid var(--dark-carbon, gray); 
-	gap: var(--unit-mini); 
+	> * {
+		margin: var(--unit-mini); 
+		gap: var(--unit-mini); 
+	}
 
 	.sideview-wrapper {
 		height: 75%;
-		gap: inherit;
+		@media (orientation: portrait) {
+			flex-direction: column;
+		}
 		
 		.sideview {
 			display: flex;
@@ -40,7 +42,7 @@
 	}
 
 	.terminal {
-		height: 25%;
+		height: calc(25% - var(--unit-small) - var(--unit-mini));
 	}
 
 </style>
