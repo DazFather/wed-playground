@@ -63,7 +63,7 @@ func main() {
 	}))
 
 	// edit page
-	srv.HandleFunc("PUT /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("PUT /{ID}/{FILE}", nocache(func(w http.ResponseWriter, r *http.Request) {
 		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
 			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
@@ -89,9 +89,9 @@ func main() {
 			return
 		}
 		w.Write(out)
-	})
+	}))
 
-	srv.HandleFunc("DELETE /{ID}/{FILE}", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("DELETE /{ID}/{FILE}", nocache(func(w http.ResponseWriter, r *http.Request) {
 		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
 			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
@@ -110,32 +110,32 @@ func main() {
 			return
 		}
 		w.Write(out)
-	})
+	}))
 
-	srv.HandleFunc("DELETE /{ID}", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("DELETE /{ID}", nocache(func(w http.ResponseWriter, r *http.Request) {
 		play, err := ConnectPlayRequest(r.PathValue("ID"))
 		if err != nil {
 			http.Error(w, "Cannot connect to playground: "+err.Error(), http.StatusGone)
 		} else if err = play.Close(); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-	})
+	}))
 
-	srv.HandleFunc("GET /raw/{ID}/", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("GET /raw/{ID}/", nocache(func(w http.ResponseWriter, r *http.Request) {
 		var reqID = r.PathValue("ID")
 		serveDir(
 			filepath.Join(os.TempDir(), reqID+"_playground", "input"),
 			"/raw/"+reqID+"/",
 		).ServeHTTP(w, r)
-	})
+	}))
 
-	srv.HandleFunc("GET /preview/{ID}/", func(w http.ResponseWriter, r *http.Request) {
+	srv.HandleFunc("GET /preview/{ID}/", nocache(func(w http.ResponseWriter, r *http.Request) {
 		var reqID = r.PathValue("ID")
 		serveDir(
 			filepath.Join(os.TempDir(), reqID+"_playground", "output"),
 			"/preview/"+reqID+"/",
 		).ServeHTTP(w, r)
-	})
+	}))
 
 	srv.Handle("GET /", serveDir("./static", "/"))
 
