@@ -111,6 +111,7 @@
 				refresh()
 				show(out)
 			})
+			.catch(({ body }) => showAlert({type: 'warning', title: "Something went wrong :/", description: body}))
 			.finally(() => adderFilename.value = "")
 	}
 
@@ -121,6 +122,7 @@
 			show(out)
 			refresh()
 		})
+		.catch(({ body }) => showAlert({type: 'warning', title: "Something went wrong :/", description: body}))
 	}
 
 </script>

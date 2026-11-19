@@ -1,0 +1,33 @@
+<style>
+	position: relative;
+
+	#alert-holder {
+		position: absolute;
+		top: 1em;
+		left: 1em;
+	}
+</style>
+<html>
+	<nav id="alert-holder">
+	</nav>
+</html>
+<script require="alert">
+
+const alertHolder = select("#alert-holder")
+
+function showAlert(vals, holdtime=5000) {
+	const frag = alertTmpl.clone();
+	['type', 'title', 'description'].forEach(key => {
+		if (vals[key] != null) frag._binds[key] = vals[key]
+	})
+	const el = frag.firstElementChild;
+	alertHolder.appendChild(frag)
+
+	return new Promise((resolve) => window.setTimeout(() => {
+		el.parentNode.removeChild(el)
+		resolve(frag._binds)
+	}, holdtime))
+}
+
+</script>
+

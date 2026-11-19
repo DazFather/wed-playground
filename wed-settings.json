@@ -1,3 +1,6 @@
 {
-	"output_dir": "static"
+	"output_dir": "static",
+	"vars": {
+		"baseurl": "wedplay.dobl.one"
+	}
 }

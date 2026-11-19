@@ -1,0 +1,42 @@
+<style>
+	article {
+		background-color: var(--color-bg);
+		display: inline-block;
+		border: 0.25em solid var(--color-bg);
+		border-radius: 1em;
+		max-width: 75%;
+		overflow: hidden;
+		box-shadow: 0em 0em 0.25em;
+
+		> * {
+			margin: 0;
+			padding: 0.5em;
+		}
+		header {
+			border-radius: 0.25em;
+			background-color: var(--accent);
+		}
+		
+	}
+	.danger {
+		--accent: indianred;
+	}
+	.warning {
+		--accent: orange;
+	}
+	.success {
+		--accent: green;
+	}
+</style>
+<html type="dynamic">
+	<article bind="className:type">
+		<header>
+			<span bind="innerText:title"></span>
+		</header>
+		<p bind="innerText:description"></p>
+	</article>
+</html>
+<script>
+	const alertTmpl = useTemplate("alert-component", tmpl => tmpl._binds = useBinds(tmpl))
+</script>
+

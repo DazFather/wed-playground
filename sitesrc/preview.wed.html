@@ -108,8 +108,8 @@
 <script>
 	function copy(content) {
 		navigator.clipboard.writeText(content)
-			.then(() => alert("COPIED!"))
-			.catch(() => alert("FAILED!"))
+			.then(() => showAlert({type: 'success', title: "COPIED!"}))
+			.catch(() => showAlert({type: 'success', title: "FAILED!"}))
 	}
 </script>
 

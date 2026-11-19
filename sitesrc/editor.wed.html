@@ -69,6 +69,7 @@
 		const name = activeTab.value.querySelector(".open-btn").value
 		return http.PUT(name, editor.content)
 			.then(out => { show(out); refresh() })
+			.catch(({ body }) => showAlert({type: 'warning', title: "Something went wrong :/", description: body}))
 	}
 
 	function refresh(id=http.playID) {

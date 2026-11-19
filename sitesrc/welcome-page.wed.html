@@ -13,7 +13,7 @@
 <html>
 	<button id="connect-btn" onclik="connect()" disabled>CONNECT</button>
 </html>
-<script require="editor">
+<script require="editor alert">
 	const editorPage = useMirror(select("#editor-wrapper"), "classList")
 	const welcomePage = useMirror(select("#welcome"), "classList")
 	const connectBtn = useMirror(select("#connect-btn"), ["disabled", "innerText"])
@@ -30,6 +30,7 @@
 			welcomePage.classList.toggle('hidden')
 			refresh()
 		})
+		.catch(({ body }) => showAlert({type:'warning', title:"Could not connect, Retry later", description: body}))
 		.finally(() => connectBtn.disabled = false)
 	}
 	connect()
