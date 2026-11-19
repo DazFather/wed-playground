@@ -11,23 +11,26 @@
 	width: 100%;
 </style>
 <html>
-	<button id="connect-btn" onclik="connect()" disable>CONNECT</button>
+	<button id="connect-btn" onclik="connect()" disabled>CONNECT</button>
 </html>
 <script require="editor">
 	const editorPage = useMirror(select("#editor-wrapper"), "classList")
 	const welcomePage = useMirror(select("#welcome"), "classList")
-	const connectBtn = useMirror(select("#connect-btn"), "disable")
+	const connectBtn = useMirror(select("#connect-btn"), ["disabled", "innerText"])
 
 	function connect() {
-		connectBtn.disable = true
-		return http("/connect").then(id => {
-			editorPage.classList.toggle('hidden')
-			welcomePage.classList.toggle('hidden')
-			playID.value = id;
+		connectBtn.disabled = true
+		connectBtn.innerText = "Connecting..."
+		return http.CONNECT().then(id => {
 			if (opened.size > 0) {
 				view(opened.values().next().value, activeTab.value)
 			}
-		}).finally(() => connectBtn.disable = false)
+			connectBtn.innerText = "CONNECT"
+			editorPage.classList.toggle('hidden')
+			welcomePage.classList.toggle('hidden')
+			refresh()
+		})
+		.finally(() => connectBtn.disabled = false)
 	}
 	connect()
 

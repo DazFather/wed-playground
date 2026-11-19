@@ -39,11 +39,16 @@
 			width: 0;
 			padding: 0;
 			overflow: hidden;
-			transition: width var(--speed);
+			transition-duration: var(--speed);
+			transition-delay: var(--speed);
 		}
 	}
 	.adder:hover{
+		button:hover {
+			background-color: indianred;
+		}
 		input {
+			transition-properties: width; 
 			padding: var(--unit-mini);
 			width: 25ch;
 		}
@@ -75,7 +80,13 @@
 </html>
 <script>
 	const holder = select(".tabs-component")
-	const tabtmpl = useTemplate("tab-template")
+	const tabtmpl = useTemplate("tab-template", tmpl => tmpl._init = (name) => {
+		const tab = tmpl.children[0]
+		tab.firstElementChild.innerText = name
+		tab.firstElementChild.value = name
+		tab.lastElementChild.value = name
+		return tab
+	})
 	const adderFilename = useMirror(holder.querySelector(".adder > input"), "value")
 	const opened = new Set(Array.from(holder.querySelectorAll(".tab > .open-btn"), e => e.value))
 	const activeTab = useEffect(holder.querySelector(".active"), (item, prev) => {
@@ -85,40 +96,32 @@
 	})
 
 	async function view(name, tab) {
-		const txt = await http(`/raw/${ playID.value }/` + name)
-		editor.content = txt
+		editor.content = await http.GET(name)
 		activeTab.value = tab
 	}
 
-	async function create(name=adderFilename.value, content='<html>Hello world!</html>') {
-		if (opened.has(name)) {
-			adderFilename.value = ""
-			return await view(name, activeTab.value)
-		}
-
-		const out = await http(`/${ playID.value }/${ name }`, 'PUT', content, r => !r.ok && r.status !== 400)
-
-		opened.add(name)
-		adderFilename.value = ""
-		const tab = tabtmpl.clone().children[0]
-		tab.firstElementChild.innerText = name
-		tab.firstElementChild.value = name
-		tab.lastElementChild.value = name
-		activeTab.value = tab
-		holder.appendChild(tab)
-
-		editor.content = content
-		show(out)
-		refresh()
+	async function create(name=adderFilename.value, content='<html>\n\tHello world!\n</html>') {
+		return http.PUT(name, content)
+			.then(out => {
+				const tab = tabtmpl.clone()._init(name)
+				activeTab.value = tab
+				holder.appendChild(tab)
+				opened.add(name)
+				editor.content = content
+				refresh()
+				show(out)
+			})
+			.finally(() => adderFilename.value = "")
 	}
 
-	async function remove(name, tab) {
-		const out = await http("/" + id + "/" + name, 'DELETE')
-		holder.removeChild(tab)
-		s.delete(name)
-		show(out)
-		refresh()
-	}	
+	function remove(name, tab) {
+		return http.DELETE(name).then(out => {
+			holder.removeChild(tab)
+			s.delete(name)
+			show(out)
+			refresh()
+		})
+	}
 
 </script>
 

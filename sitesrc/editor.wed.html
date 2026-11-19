@@ -60,36 +60,60 @@
 		) }}
 	</aside>
 </html>
-<script>
+<script require="alert alert-holder">
 	const show = useDisplay("#term")
-	const playID = useEffect("std", id => {
-		refresh(id)
-		return id
-	})
 
 	const editor = useBinds(".editor-component")
 
-	async function run(id=playID.value) {
+	function run() {
 		const name = activeTab.value.querySelector(".open-btn").value
-		const out = await http("/" + id + "/" + name, 'PUT', editor.content, r => !r.ok && r.status !== 400)
-		show(out)
-		refresh(id)
+		return http.PUT(name, editor.content)
+			.then(out => { show(out); refresh() })
 	}
 
-	function refresh(id=playID.value) {
-		editor.preview = `/preview/${ id }/`
+	function refresh(id=http.playID) {
+		editor.preview = `${location.origin}/preview/${ id }/`
 	}
 
-	async function checkerr(res) {
-		if (!res.ok) throw await res.text()
-		return res
+	const http = {
+
+		playID: "std",
+
+		async CONNECT() {
+			const res = await fetch("/connect", {method: 'GET', cache: "no-store"})
+			if (!res.ok && res.status !== 400) throw {status: res.status, body: await res.text()}
+			return this.playID = await res.text()
+		},
+
+		cache: new Map(),
+
+		async GET(name) {
+			let content = this.cache.get(name)
+			if (!!content) return content;
+
+			const res = await fetch("/raw/" + this.playID + "/" + name, {method: 'GET', cache: "no-store"})
+			if (!res.ok) throw {status: res.status, body: await res.text()}
+			content = await res.text()
+			this.cache.set(name, content)
+			return content
+		},
+
+		async DELETE(name) {
+			const res = await fetch("/" + this.playID + "/" + name, {method: 'DELETE', cache: "no-store"})
+			if (!res.ok && res.status !== 400) throw {status: res.status, body: await res.text()}
+			this.cache.delete(name)
+			return await res.text()
+		},
+
+		async PUT(name, body) {
+			const res = await fetch("/" + this.playID + "/" + name, {method: 'PUT', body, cache: "no-store"})
+			if (!res.ok && res.status !== 400) throw {status: res.status, body: await res.text()}
+			this.cache.set(name, body)
+			return await res.text()
+		},
+
 	}
 
-	function http(path, method='GET', body=null, fails=(res) => !res.ok) {
-		return fetch(path, {method, body, cache: "no-store"})
-			.then(res => { if (fails(res)) throw res; return res} )
-			.then(res => res.text())
-			.catch(res => res.text().then(msg => window.alert(msg)))
-	}
+
 </script>
 
