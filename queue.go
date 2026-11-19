@@ -25,30 +25,29 @@ type PlayRequest struct {
 	id        string
 	created   chan *Playground
 	aborted   chan struct{}
-	isaborted bool
+	abortOnce sync.Once
+	closeOnce sync.Once
 	err       error
 	*Playground
 }
 
 func (r *PlayRequest) Abort() {
-	r.isaborted = true
-	r.aborted <- struct{}{}
+	r.abortOnce.Do(func() { close(r.aborted) })
 }
 
 func (r *PlayRequest) Close() error {
-	close(r.aborted)
-	close(r.created)
-	actives.Delete(r.id)
+	r.Abort()
+	r.closeOnce.Do(func() { actives.Delete(r.id) })
+	if r.Playground == nil {
+		return nil
+	}
 	return r.Playground.Close()
 }
 
-func NewPlayReqest(ctx context.Context) *PlayRequest {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
+func NewPlayReqest(ctx, shutdown context.Context) *PlayRequest {
 	req := &PlayRequest{
 		id:      uuid.New().String(),
-		aborted: make(chan struct{}, 1),
+		aborted: make(chan struct{}),
 		created: make(chan *Playground),
 	}
 
@@ -58,10 +57,11 @@ func NewPlayReqest(ctx context.Context) *PlayRequest {
 
 	select {
 	case requests <- req:
+		return req
 	case <-ctx.Done():
-		return nil
+	case <-shutdown.Done():
 	}
-	return req
+	return nil
 }
 
 var requests = make(chan *PlayRequest, WAITLIST_SIZE)
@@ -75,21 +75,29 @@ func LoadConsumers(ctx context.Context) func() {
 
 	for i := 0; i < MAX_CONCURRENT_PLAYS; i++ {
 		wg.Go(func() {
-			for req := range requests {
-				req.Waitlist(ctxx, queue)
+			for {
+				select {
+				case req := <-requests:
+					req.Waitlist(ctxx, queue)
+				case <-ctxx.Done():
+					return
+				}
 			}
 		})
 		wg.Go(func() {
-			for req := range queue {
-				req.Active(ctxx)
+			for {
+				select {
+				case req := <-queue:
+					req.Active(ctxx)
+				case <-ctxx.Done():
+					return
+				}
 			}
 		})
 	}
 
 	return func() {
 		cancel()
-		close(requests)
-		close(queue)
 		wg.Wait()
 	}
 }
@@ -106,29 +114,19 @@ func (req *PlayRequest) Waitlist(ctx context.Context, q chan *PlayRequest) {
 }
 
 func (req *PlayRequest) Active(ctx context.Context) {
-	done := make(chan bool, 1)
+	defer req.Close()
 
-	go func() {
-		defer close(done)
-		if req.Playground, req.err = NewPlayground(req.id); req.err == nil && req.isaborted {
-			req.Playground.Close()
-		}
-		done <- req.err == nil && req.Playground != nil
-	}()
-
-	select {
-	case success := <-done:
-		if !success {
-			return
-		}
-	case <-req.aborted:
-	case <-ctx.Done():
+	req.Playground, req.err = NewPlayground(req.id)
+	if req.err != nil || req.Playground == nil {
 		return
 	}
 
-	defer req.Close()
 	actives.Store(req.id, req)
-	req.created <- req.Playground
+	select {
+	case req.created <- req.Playground:
+	case <-req.aborted:
+	case <-ctx.Done():
+	}
 
 	max, cancel := context.WithTimeout(ctx, MAX_PLAYTIME)
 	defer cancel()
@@ -145,11 +143,15 @@ func (req *PlayRequest) Active(ctx context.Context) {
 				return
 			}
 			inactive.Reset(MAX_INACTIVE_TIME)
+		case <-req.aborted:
+			return
 		case <-dead:
 			return
 		case <-inactive.C:
 			return
 		case <-max.Done():
+			return
+		case <-ctx.Done():
 			return
 		}
 	}

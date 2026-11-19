@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 )
 
 func Serve(ctx context.Context, mux *http.ServeMux, port string) error {
@@ -12,14 +13,19 @@ func Serve(ctx context.Context, mux *http.ServeMux, port string) error {
 		Handler: cors(mux),
 	}
 
+	shutdownDone := make(chan struct{})
 	go func() {
 		<-ctx.Done()
-		server.Shutdown(ctx)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		server.Shutdown(shutdownCtx)
+		close(shutdownDone)
 	}()
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
+	<-shutdownDone
 	return nil
 }
 

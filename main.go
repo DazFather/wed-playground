@@ -39,7 +39,7 @@ func main() {
 	srv.HandleFunc("GET /connect", nocache(func(w http.ResponseWriter, r *http.Request) {
 		var (
 			ctx = r.Context()
-			req = NewPlayReqest(ctx)
+			req = NewPlayReqest(ctx, bgctx)
 		)
 		if req == nil {
 			http.Error(w, "Cannot connect to playground: too many requests", http.StatusServiceUnavailable)
@@ -79,7 +79,7 @@ func main() {
 
 		file := r.PathValue("FILE")
 		if !filenamergx.MatchString(file) {
-			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", 403)
+			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", http.StatusForbidden)
 			return
 		}
 
@@ -100,7 +100,7 @@ func main() {
 
 		file := r.PathValue("FILE")
 		if !filenamergx.MatchString(file) {
-			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", 403)
+			http.Error(w, "Cannot edit file '"+file+"' outside of boundaries", http.StatusForbidden)
 			return
 		}
 

@@ -23,6 +23,7 @@ type Playground struct {
 	containerID string
 	tempdir     string
 	edited      chan string
+	closeOnce   sync.Once
 	sync.Mutex
 }
 
@@ -94,12 +95,13 @@ func (p *Playground) Delete(file string) ([]byte, error) {
 }
 
 func (p *Playground) Close() error {
-	defer close(p.edited)
-
-	err := os.RemoveAll(p.tempdir)
-	if _, e := sh(oci, "kill", p.containerID); e != nil {
-		err = errors.Join(err, e)
-	}
+	var err error
+	p.closeOnce.Do(func() {
+		if _, e := sh(oci, "kill", p.containerID); e != nil {
+			err = errors.Join(err, e)
+		}
+		err = errors.Join(err, os.RemoveAll(p.tempdir))
+	})
 	return err
 }
 
